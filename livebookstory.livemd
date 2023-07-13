@@ -2,12 +2,39 @@
 
 ```elixir
 a = 1
+b = 2
 ```
 
 ## Section
+
+```elixir
+
+```
 
 ```elixir
 [a, b] = [1, 2]
 ```
 
 ## Section
+
+```elixir
+defmodule Hello do
+  def word do
+    IO.puts("Hello Kgotso")
+  end
+end
+
+Hello.word()
+```
+
+## Passing a string into a function
+
+```elixir
+defmodule Hi do
+  def word(name) do
+    IO.puts("Hello Kgotso #{name}")
+  end
+end
+
+Hi.word("kgotso")
+```
