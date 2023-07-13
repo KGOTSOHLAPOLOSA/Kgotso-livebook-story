@@ -1,0 +1,13 @@
+# kgotso Livebook story
+
+```elixir
+a = 1
+```
+
+## Section
+
+```elixir
+[a, b] = [1, 2]
+```
+
+## Section
