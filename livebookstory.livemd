@@ -37,4 +37,6 @@ defmodule Hi do
 end
 
 Hi.word("kgotso")
+
+# This code s fun
 ```
