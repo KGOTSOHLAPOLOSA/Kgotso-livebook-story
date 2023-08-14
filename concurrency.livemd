@@ -1,0 +1,446 @@
+# Concurrency
+
+## Concurency
+
+The concurrency model relies on Actors.
+
+Actor
+
+* A contained process that communicates with other processes through message passing.
+* Each actor (process) is an independent unit that maintains its state
+
+Proceses
+
+* Processes in Elixir are lightweight
+
+* They're isolated from each other, which means a failure in one process doesn't affect another.
+
+* Spawn and Spawn_link - To create new processes.
+
+* Process identifiers (PIDs) - A unique ID for each process.
+
+* "In Elixir, all code runs inside processes. Processes are isolated from each other, run concurrent to one another and communicate via message passing. Processes are not only the basis for concurrency in Elixir, but they also provide the means for building distributed and fault-tolerant programs."
+
+* Processes in Elixir are extremely lightweight in terms of memory and CPU
+
+```elixir
+pid = spawn(fn -> IO.puts("hi pedawan") end)
+```
+
+```elixir
+Process.alive?(pid)
+```
+
+IT SAYS "FALSE"
+
+Why does it say this? >> Because the async function was executed, and then ended Once hi was output, the fn was complete. The Erlang Runtime Garbage Collecter collects whatever is associated to that PID.
+
+```elixir
+pid2 = spawn(fn -> Process.sleep(10000) && IO.puts("hi padawan") end)
+```
+
+```elixir
+Process.alive?(pid2)
+```
+
+What happens after 10 seconds?
+
+* What does this mean? No Erlang process, associated to that pid is still executing async.
+* So, spawn is a way to run something asynchronously.
+
+## spwan/1
+
+* spwan/1  takes a function which it will execute in another process.
+
+```elixir
+pid3 = spawn(fn -> 1 + 2 end)
+```
+
+* returns a PID (process identifier)
+* At this point, the process you spawned is very likely dead.
+* The spawned process will execute the given function and exit after the function is done:
+
+```elixir
+Process.alive?(pid3)
+```
+
+## self/0
+
+* We can retrieve the PID of the current process by calling self/0:
+
+```elixir
+Process.alive?(self())
+```
+
+## send and receive
+
+* send/2 can send massages to a process
+
+* receive/1 receive messages
+
+* The process that sends the message does not block on send/2, it puts the message in the recipient’s mailbox and continues
+
+* In particular, a process can send messages to itself.
+
+```elixir
+send(self(), {:hello, "world"})
+```
+
+* When a message is sent to a process, the message is stored in the process mailbox
+* The receive/1 block goes through the current process mailbox searching for a message that matches any of the given patterns
+
+```elixir
+receive do
+  {:hello, msg} -> msg
+  {:world, _msg} -> "wont match"
+end
+```
+
+* If there is no message in the mailbox matching any of the patterns, the current process will wait until a matching message arrives. A timeout can also be specified:
+
+```elixir
+receive do
+  {:hello, msg} -> msg
+after
+  1_000 -> "nothing after 1s"
+end
+```
+
+## Sending & receiving messages between Processes
+
+```elixir
+parent = self()
+```
+
+```elixir
+spawn(fn -> send(parent, {:hello, self()}) end)
+```
+
+```elixir
+receive do
+  {:hello, pid} -> "got hello from #{inspect(pid)}"
+end
+```
+
+## Links
+
+```elixir
+spawn(fn -> raise "oops" end)
+```
+
+* It merely logged an error but the parent process is still running. That’s because processes are isolated
+
+## spawn_link/1
+
+* If we want the failure in one process to propagate to another one, we should link them. This can be done with spawn_link/1
+
+```elixir
+self()
+# spawn_link(fn -> raise "oooops" end)
+```
+
+* Because processes are linked, we now see a message saying the parent process, which is the shell process, has received an EXIT signal from another process causing the shell to terminate. IEx detects this situation and starts a new shell session.
+
+* Processes and links play an important role when building fault-tolerant systems. Elixir processes are isolated and don’t share anything by default. Therefore, a failure in a process will never crash or corrupt the state of another process. Links, however, allow processes to establish a relationship in case of failure. We often link our processes to supervisors which will detect when a process dies and start a new process in its place.
+
+## Example: Create a simple process using spawn that prints message
+
+```elixir
+defmodule SimpleProcess do
+  def print_messages(name) do
+    IO.puts("Hello from a spawaned process! #{name}")
+  end
+end
+```
+
+```elixir
+pid = spawn(SimpleProcess, :print_messages, ["name"])
+```
+
+```elixir
+defmodule Foo do
+  def receiver() do
+    receive do
+      v ->
+        IO.inspect(v)
+        receiver()
+    end
+  end
+end
+```
+
+```elixir
+pid4 = spawn(Foo, :receiver, [])
+```
+
+check if the process is still alive. It will indicate "TRUE" thats because the function is recursive
+
+```elixir
+Process.alive?(pid4)
+```
+
+```elixir
+send(pid4, "Hey you")
+```
+
+```elixir
+Process.alive?(pid4)
+```
+
+Ways to kill the process
+
+```elixir
+Process.delete(pid4)
+```
+
+```elixir
+Process.alive?(pid4)
+```
+
+* Its still alive after delete,  thats because Process.delete only sends stop signal or message to the process and the func or module does not have a receive clause to handle a stop signal.
+
+## Message Passing in Processes
+
+* Each actor is a process.
+* Each process performs a specific task.
+* To tell a process to do something, you need to send it a message. The process can reply by sending back another message.
+* The kinds of messages the process can act on are specific to the process itself. In other words, messages are pattern-matched.
+* Other than that, processes don’t share any information with other processes
+
+```elixir
+spawn(fn -> IO.puts("Hello, World!") end)
+|> Process.info(:memory)
+```
+
+```elixir
+send(self(), :hi)
+```
+
+```elixir
+Process.info(self(), :messages)
+```
+
+```elixir
+receive do
+  :hi -> IO.puts("Hello.")
+end
+```
+
+```elixir
+Process.info(self(), :messages)
+```
+
+```elixir
+# The after clause takes a timeout value of either :infinity or an integer between 0 and
+# 4,294,967,295 (49.7 days). Setting the value to 0 allows the receive block to return
+# immediately, while any other value will wait that amount of milliseconds.
+receive do
+  :hi ->
+    IO.puts("Hello!")
+after
+  0 ->
+    IO.puts("Message not found")
+end
+```
+
+## Saluator
+
+```elixir
+defmodule Salutator do
+  def run do
+    receive do
+      {:hi, name} ->
+        IO.puts("Hi, #{name}")
+
+      {_, name} ->
+        IO.puts("Hello, #{name}")
+    end
+  end
+end
+```
+
+```elixir
+pid5 = spawn(Salutator, :run, [])
+```
+
+```elixir
+send(pid5, {:hi, "Mark"})
+```
+
+```elixir
+send(pid5, {:hello, "Suzie"})
+```
+
+* Remember, receive/1 is a normal function (well, macro).
+
+* Once it’s run, it’s done. To get run/0 to receive more than one message, we’ll have to call it again.
+
+* We can do that with recursion.
+
+```elixir
+defmodule Salutator1 do
+  def run do
+    receive do
+      {:hi, name} ->
+        IO.puts("Hi, #{name}")
+
+      {_, name} ->
+        IO.puts("Hello, #{name}")
+    end
+
+    # <- Recursion FTW!
+    run()
+  end
+end
+```
+
+```elixir
+pid6 = spawn(Salutator, :run, [])
+```
+
+```elixir
+send(pid6, {:hi, "Mark"})
+```
+
+```elixir
+send(pid6, {:hi, "Mark"})
+```
+
+## Message Passing in Processes
+
+Greeter Module
+
+```elixir
+defmodule Greeter do
+  def start do
+    spawn(fn -> loop() end)
+  end
+
+  def loop do
+    receive do
+      {:greet, name} ->
+        IO.puts("Hello, #{name}!")
+        loop()
+    end
+  end
+end
+
+pid = Greeter.start()
+send(pid, {:greet, "Alice"})
+```
+
+```elixir
+pid = Greeter.start()
+```
+
+Exercise 1: Modify the Greeter module to handle different types of greetings (e.g., Good Morning, Good Evening) based on messages sent to the process.
+
+```elixir
+defmodule Greeter1 do
+  def start do
+    spawn(fn -> loop() end)
+  end
+
+  def loop do
+    receive do
+      {:greet_morning, name} ->
+        IO.puts("Good morning, #{name}!")
+
+      {:greet_evening, name} ->
+        IO.puts("Good evening, #{name}!")
+        loop()
+    end
+  end
+end
+```
+
+```elixir
+pid = Greeter1.start()
+pid2 = Greeter1.start()
+```
+
+```elixir
+send(pid, {:greet_morning, "kgotso"})
+```
+
+```elixir
+send(pid2, {:greet_evening, "Hlapolosa"})
+```
+
+## Process Management
+
+Process Links and process dictionaries
+
+* Linking processes means if one fails, the linked processes can be notified. Process dictionaries are like scratch spaces for processes, but their use is generally discouraged.
+
+* Example: Linked Process
+
+```elixir
+defmodule LinkedProcess do
+  def start_link do
+    spawn_link(fn -> loop() end)
+  end
+
+  def loop do
+    receive do
+      :exit ->
+        exit(:normal)
+
+      msg ->
+        IO.puts("Received: #{msg}")
+        loop()
+    end
+  end
+end
+```
+
+```elixir
+pid = LinkedProcess.start_link()
+```
+
+```elixir
+# Process.exit(pid, :kill) 
+```
+
+Exercise Question : Linked Process
+
+* Consider the above example of a linked process. Modify the LinkedProcess module to include a function that sends messages to the loop. Then, write code to spawn the linked process, send it several messages, and finally kill it.
+
+* Hint: You can use the send/2 function to send messages to a process by its PID. Goal: Practice working with linked processes, message passing, and process termination.
+
+```elixir
+send(pid, "Hello LIFE")
+send(pid, "Hello Kg")
+```
+
+```elixir
+send(pid, :exit)
+```
+
+```elixir
+send(pid, "Hello kayGee")
+```
+
+* In order to kill the linked process, you need to run the :exit process for it to return tru
+
+```elixir
+Process.exit(pid, :kill)
+```
+
+## API- Applcation Programme Interface
+
+API stands for Application Programming Interface. It's a set of rules and protocols that allows different software applications to communicate with each other. Think of it as a menu in a restaurant. You, the customer, have a list of dishes you can order, prepared by the kitchen. The waiter (API) takes your request to the kitchen and brings back the dish you ordered. In this analogy:
+
+* You are the user.
+* The order represents the request.
+* The kitchen is the system or application that processes the request.
+* The dish that is served to you is the response.
+* In a technical context, when you use an app on your phone to check the weather, the app sends a request to a server via an API. The server processes the request, retrieves the data, and sends it back to your app, which then displays the weather to you.
+
+## Why are APIs important?
+
+* Interoperability: APIs allow different software systems, which might have been developed independently and possibly in entirely different programming languages, to work together.
+* Modularity: Systems can be built modularly, with different components interacting through well-defined APIs. This makes development, scaling, and troubleshooting easier
+* Security: Instead of giving direct access to databases or core systems, APIs allow controlled access, exposing only what's necessary.
+* Efficiency: APIs can provide a standardized way to provide and receive data, which can lead to faster development and integration times.
+* Economic Value: Companies often monetize their data and services through APIs. For instance, cloud providers offer a plethora of services accessed primarily through APIs.
