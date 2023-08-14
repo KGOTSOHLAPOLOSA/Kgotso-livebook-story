@@ -69,3 +69,30 @@ REST API and OpenAPI : https://www.youtube.com/watch?v=pRS9LRBgjYg
 * Info Object: Provides metadata about the API like title, version, and other details.
 * Paths Object: Defines the available paths and operations for the API.
 * Components Object: A set of reusable objects for different aspects of the OAS. Can include schemas (like JSON schemas for request and response bodies), parameters, responses, examples, request bodies, headers, security schemes, links, callbacks, and more
+
+## How Phoenix works
+
+Plugs are the basic element of Phoenix. Plugs are a specification for composing a web application with functions — Phoenix receives an incoming request and converts it into Conn, which is a data structure that handles requests and responses   HTTP connections.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Conn, Params > | Plug - Plug - Plug | > Conn
+
+<!-- livebook:{"break_markdown":true} -->
+
+Conn data structure is passed through several plugs to complete the functionality and return a response. To simplify it:
+
+1. Receives a request
+2. Converts it to conn
+3. Passes through several plugs
+4. Returns response
+
+## Lifecycle of Phoenix request
+
+* Phoenix receives a request at the endpoint and the endpoint converts it into a Conn data structure, forwarding it to the router.
+
+* The router pipelines the Conn data structure into the controller, and the controller interacts with the model to fetch data from the database and render it using templates. Templates can be HTML or JSON files. Here, the endpoint, router, and controllers are plugs — everything in Phoenix is a composable function that transforms data into different structure.
+
+## Creating a REST API using Elixir and Phoenix
+
+https://blog.logrocket.com/build-rest-api-elixir-phoenix/#introduction-to-phoenix
